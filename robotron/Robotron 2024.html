@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robotron 2024</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #gameArea {
+      position: relative;
+      width: 300px;
+      height: 400px;
+      border: 2px solid black;
+      overflow: hidden;
+      background-color: lightgray;
+    }
+    .character {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+    }
+    .player {
+      background-color: blue;
+    }
+    .enemy {
+      background-color: red;
+    }
+    .strongEnemy {
+      background-color: darkred;
+      width: 40px;
+      height: 40px;
+    }
+    .bullet {
+      width: 10px;
+      height: 10px;
+      background-color: black;
+    }
+    #controls, #status, #gameButtons {
+      margin-top: 10px;
+      text-align: center;
+    }
+    button {
+      margin: 5px;
+      width: 30px;
+      height: 30px;
+    }
+    @media (max-width: 600px) {
+      #gameArea {
+        width: 90%;
+        height: 300px;
+      }
+      .character {
+        width: 20px;
+        height: 20px;
+      }
+      .strongEnemy {
+        width: 30px;
+        height: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Robotron 2024</h1>
+  <div id="gameArea"></div>
+  <div id="gameButtons">
+    <button id="startButton" onclick="startGame()">Iniciar</button>
+    <button id="restartButton" onclick="resetGame()" disabled>Reiniciar</button>
+  </div>
+  <div id="controls">
+    <div>
+      <button onclick="setDirection('up')">↑</button>
+    </div>
+    <div>
+      <button onclick="setDirection('left')">←</button>
+      <button onclick="setDirection('down')">↓</button>
+      <button onclick="setDirection('right')">→</button>
+    </div>
+    <button onclick="shoot()">Atirar</button>
+  </div>
+  <div id="status">
+    <p id="kills">Inimigos eliminados: 0</p>
+    <p id="message"></p>
+  </div>
+
+  <script>
+    const gameArea = document.getElementById('gameArea');
+    const killsDisplay = document.getElementById('kills');
+    const messageDisplay = document.getElementById('message');
+    const restartButton = document.getElementById('restartButton');
+    let kills = 0;
+    let playerDirection = null;
+    let isGameRunning = false;
+
+    const player = document.createElement('div');
+    player.classList.add('character', 'player');
+    player.style.left = '135px';
+    player.style.top = '185px';
+    gameArea.appendChild(player);
+
+    function movePlayer() {
+      if (!isGameRunning || !playerDirection) return;
+      const step = 2;
+      const playerRect = player.getBoundingClientRect();
+      const gameRect = gameArea.getBoundingClientRect();
+
+      switch (playerDirection) {
+        case 'up':
+          if (playerRect.top > gameRect.top) {
+            player.style.top = `${player.offsetTop - step}px`;
+          }
+          break;
+        case 'down':
+          if (playerRect.bottom < gameRect.bottom) {
+            player.style.top = `${player.offsetTop + step}px`;
+          }
+          break;
+        case 'left':
+          if (playerRect.left > gameRect.left) {
+            player.style.left = `${player.offsetLeft - step}px`;
+          }
+          break;
+        case 'right':
+          if (playerRect.right < gameRect.right) {
+            player.style.left = `${player.offsetLeft + step}px`;
+          }
+          break;
+      }
+    }
+
+    setInterval(movePlayer, 20);
+
+    function setDirection(direction) {
+      playerDirection = direction;
+    }
+
+    function shoot() {
+      if (!isGameRunning) return;
+      const bullet = document.createElement('div');
+      bullet.classList.add('character', 'bullet');
+      bullet.style.left = `${player.offsetLeft + 10}px`;
+      bullet.style.top = `${player.offsetTop}px`;
+      gameArea.appendChild(bullet);
+
+      const bulletInterval = setInterval(() => {
+        switch (playerDirection) {
+          case 'up': bullet.style.top = `${bullet.offsetTop - 5}px`; break;
+          case 'down': bullet.style.top = `${bullet.offsetTop + 5}px`; break;
+          case 'left': bullet.style.left = `${bullet.offsetLeft - 5}px`; break;
+          case 'right': bullet.style.left = `${bullet.offsetLeft + 5}px`; break;
+        }
+
+        if (bullet.offsetTop < 0 || bullet.offsetLeft < 0 || bullet.offsetTop > 400 || bullet.offsetLeft > 300) {
+          clearInterval(bulletInterval);
+          gameArea.removeChild(bullet);
+        }
+
+        const enemies = document.querySelectorAll('.enemy, .strongEnemy');
+        enemies.forEach((enemy) => {
+          const bulletRect = bullet.getBoundingClientRect();
+          const enemyRect = enemy.getBoundingClientRect();
+
+          if (
+            bulletRect.left < enemyRect.right &&
+            bulletRect.right > enemyRect.left &&
+            bulletRect.top < enemyRect.bottom &&
+            bulletRect.bottom > enemyRect.top
+          ) {
+            clearInterval(bulletInterval);
+            gameArea.removeChild(bullet);
+
+            if (enemy.classList.contains('strongEnemy')) {
+              if (!enemy.dataset.hits) enemy.dataset.hits = 0;
+              enemy.dataset.hits++;
+              if (enemy.dataset.hits >= 2) gameArea.removeChild(enemy);
+            } else {
+              gameArea.removeChild(enemy);
+            }
+
+            kills++;
+            killsDisplay.textContent = `Inimigos eliminados: ${kills}`;
+          }
+        });
+      }, 20);
+    }
+
+    function createEnemy(type = 'normal') {
+      const enemy = document.createElement('div');
+      enemy.classList.add('character', type === 'strong' ? 'strongEnemy' : 'enemy');
+      enemy.style.left = Math.random() < 0.5 ? '0px' : '270px';
+      enemy.style.top = Math.random() * 370 + 'px';
+      gameArea.appendChild(enemy);
+
+      const moveInterval = setInterval(() => {
+        if (!isGameRunning) {
+          clearInterval(moveInterval);
+          return;
+        }
+
+        const enemyRect = enemy.getBoundingClientRect();
+        const playerRect = player.getBoundingClientRect();
+
+        const enemySpeed = type === 'strong' ? 1 : 2;
+
+        if (Math.abs(playerRect.left - enemyRect.left) > Math.abs(playerRect.top - enemyRect.top)) {
+          if (playerRect.left < enemyRect.left) {
+            enemy.style.left = `${enemy.offsetLeft - enemySpeed}px`;
+          } else {
+            enemy.style.left = `${enemy.offsetLeft + enemySpeed}px`;
+          }
+        } else {
+          if (playerRect.top < enemyRect.top) {
+            enemy.style.top = `${enemy.offsetTop - enemySpeed}px`;
+          } else {
+            enemy.style.top = `${enemy.offsetTop + enemySpeed}px`;
+          }
+        }
+
+        if (
+          playerRect.left < enemyRect.right &&
+          playerRect.right > enemyRect.left &&
+          playerRect.top < enemyRect.bottom &&
+          playerRect.bottom > enemyRect.top
+        ) {
+          endGame('Você perdeu!');
+        }
+      }, 50);
+    }
+
+    function startGame() {
+      isGameRunning = true;
+      restartButton.disabled = false;
+
+      setInterval(() => {
+        if (isGameRunning) createEnemy('normal');
+      }, 2000);
+
+      setInterval(() => {
+        if (isGameRunning) createEnemy('strong');
+      }, 5000);
+    }
+
+    function endGame(message) {
+      isGameRunning = false;
+      messageDisplay.textContent = message;
+    }
+
+    function resetGame() {
+      location.reload();
+    }
+
+    document.addEventListener('keydown', (event) => {
+      switch (event.key.toLowerCase()) {
+        case 'w': setDirection('up'); break;
+        case 'a': setDirection('left'); break;
+        case 's': setDirection('down'); break;
+        case 'd': setDirection('right'); break;
+        case ' ': shoot(); break;
+        case 'e': startGame(); break;
+        case 'r': resetGame(); break;
+      }
+    });
+  </script>
+</body>
+</html>
